@@ -39,5 +39,30 @@ CHIP CPU {
         pc[15];          // address of next instruction
 
     PARTS:
-    // Put your code here:
+    Not(in=instruction[15], out=isAIns);
+
+    Mux16(a=aluOut, b=instruction, sel=isAIns, out=aIn);
+
+    Or(a=isAIns, b=instruction[5], out=loadA); // load_a = is_a_ins OR save_to_a
+    ARegister(in=aIn, load=loadA, out=aOut, out[0..14]=addressM);
+
+    And(a=instruction[15], b=instruction[12], out=selm); // sel_m = is_c_ins && use_m
+    Mux16(a=aOut, b=inM, sel=selm, out=aOrMem); // A OR M
+
+    And(a=instruction[15], b=instruction[4], out=loadd); // load_d = is_c_instr AND save_to_d
+    DRegister(in=aluOut, load=loadd, out=dOut);
+
+    ALU(x=dOut, y=aOrMem, zx=instruction[11], nx=instruction[10], zy=instruction[9], ny=instruction[8], f=instruction[7], no=instruction[6],
+    out=aluOut, out=outM, zr=zero, ng=negative);
+
+    Or(a=negative, b=zero, out=negorzero);
+    Not(in=negorzero, out=positive);
+    And(a=positive, b=instruction[0], out=jumppositive);
+    And(a=zero, b=instruction[1], out=jumpzero);
+    And(a=negative, b=instruction[2], out=jumpnegative);
+    Or8Way(in[0]=jumppositive, in[1]=jumpzero, in[2]=jumpnegative, out=jumpmaybe);
+    And(a=instruction[15], b=jumpmaybe, out=loadpc);
+    PC(in=aOut, reset=reset, load=loadpc, inc=true, out[0..14]=pc);
+
+    And(a=instruction[15], b=instruction[3], out=writeM);
 }
